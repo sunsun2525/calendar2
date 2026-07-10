@@ -1004,7 +1004,7 @@ function renderCalendar(){
         const dot = document.createElement('span');
         dot.className = 'dot';
         const text = document.createElement('span');
-        text.textContent = iv.label;
+        text.textContent = iv.label.slice(0, 3);
         line.appendChild(dot);
         line.appendChild(text);
         labelsEl.appendChild(line);
