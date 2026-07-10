@@ -186,6 +186,17 @@
       <div id="shiftWeeklyMode">
         <label>曜日（複数選択可）</label>
         <div class="weekday-picker" id="shiftWeekdays"></div>
+        <div class="row">
+          <div>
+            <label>期間の開始日（空欄なら制限なし）</label>
+            <input type="date" id="shiftValidFrom">
+          </div>
+          <div>
+            <label>期間の終了日（空欄なら制限なし）</label>
+            <input type="date" id="shiftValidTo">
+          </div>
+        </div>
+        <div class="helper" style="margin:-4px 0 10px;">期間を指定すると、その範囲の曜日だけに反映されます。バイトを辞めた後などに使えます。</div>
       </div>
 
       <div id="shiftDatesMode" style="display:none;">
@@ -219,7 +230,11 @@
   <!-- 単発予定 -->
   <div class="panel" id="panel-events">
     <div class="card">
-      <h2>単発の予定を追加</h2>
+      <h2>予定を追加</h2>
+      <div class="mode-toggle" id="eventModeToggle">
+        <button type="button" class="mode-btn active" data-mode="multi">日付をまとめて追加</button>
+        <button type="button" class="mode-btn" data-mode="range">日をまたぐ1つの予定</button>
+      </div>
       <div class="row">
         <div>
           <label>誰の予定？</label>
@@ -230,26 +245,54 @@
           <input type="text" id="eventLabel" placeholder="友達と飲み会">
         </div>
       </div>
-      <label>日付を選んで追加（複数可）</label>
-      <div class="date-add-row">
-        <div><input type="date" id="eventDateInput"></div>
-        <div><button type="button" class="ghost" id="eventDateAddBtn">日付を追加</button></div>
-      </div>
-      <div class="date-chip-list" id="eventDateChips"></div>
-      <div class="row">
-        <div>
-          <label>開始</label>
-          <input type="time" id="eventStart" value="19:00">
+
+      <div id="eventMultiMode">
+        <label>日付を選んで追加（複数可）</label>
+        <div class="date-add-row">
+          <div><input type="date" id="eventDateInput"></div>
+          <div><button type="button" class="ghost" id="eventDateAddBtn">日付を追加</button></div>
         </div>
-        <div>
-          <label>終了</label>
-          <input type="time" id="eventEnd" value="22:00">
+        <div class="date-chip-list" id="eventDateChips"></div>
+        <div class="row">
+          <div>
+            <label>開始</label>
+            <input type="time" id="eventStart" value="19:00">
+          </div>
+          <div>
+            <label>終了</label>
+            <input type="time" id="eventEnd" value="22:00">
+          </div>
         </div>
       </div>
+
+      <div id="eventRangeMode" style="display:none;">
+        <div class="row">
+          <div>
+            <label>開始日</label>
+            <input type="date" id="eventRangeStartDate">
+          </div>
+          <div>
+            <label>開始時刻</label>
+            <input type="time" id="eventRangeStartTime" value="22:00">
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label>終了日</label>
+            <input type="date" id="eventRangeEndDate">
+          </div>
+          <div>
+            <label>終了時刻</label>
+            <input type="time" id="eventRangeEndTime" value="09:00">
+          </div>
+        </div>
+        <div class="helper" style="margin:-4px 0 10px;">夜通しのイベントや、複数日にまたがる旅行などに使えます。</div>
+      </div>
+
       <button class="primary" id="addEventBtn">予定を追加する</button>
     </div>
     <div class="card">
-      <h2>登録済みの単発予定（直近）</h2>
+      <h2>登録済みの予定（直近）</h2>
       <div id="eventList"></div>
       <div class="empty-note" id="eventEmptyNote">まだ登録がありません。</div>
     </div>
@@ -521,15 +564,20 @@ document.getElementById('addShiftBtn').addEventListener('click', async ()=>{
 
   if(shiftMode === 'weekly'){
     if(selectedWeekdays.size===0){ alert('曜日を1つ以上選んでください。'); return; }
+    const validFrom = document.getElementById('shiftValidFrom').value || null;
+    const validTo = document.getElementById('shiftValidTo').value || null;
+    if(validFrom && validTo && validFrom > validTo){ alert('期間の開始日は終了日より前にしてください。'); return; }
     selectedWeekdays.forEach(wd=>{
-      state.shifts.push({ id: uid(), personId, weekday: wd, date: null, start, end, label });
+      state.shifts.push({ id: uid(), personId, weekday: wd, date: null, start, end, label, validFrom, validTo });
     });
     selectedWeekdays = new Set();
     renderWeekdayPicker();
+    document.getElementById('shiftValidFrom').value='';
+    document.getElementById('shiftValidTo').value='';
   } else {
     if(selectedShiftDates.size===0){ alert('日付を1つ以上追加してください。'); return; }
     selectedShiftDates.forEach(dateStr=>{
-      state.shifts.push({ id: uid(), personId, weekday: null, date: dateStr, start, end, label });
+      state.shifts.push({ id: uid(), personId, weekday: null, date: dateStr, start, end, label, validFrom: null, validTo: null });
     });
     selectedShiftDates = new Set();
     renderShiftDateChips();
@@ -556,6 +604,11 @@ function renderShiftList(){
       whenLabel = `${s.date.replace(/-/g,'/')}(${WD_LABELS[d.getDay()]})だけ`;
     } else {
       whenLabel = `毎週${WD_LABELS[s.weekday]}曜`;
+      if(s.validFrom || s.validTo){
+        const fromStr = s.validFrom ? s.validFrom.replace(/-/g,'/') : '';
+        const toStr = s.validTo ? s.validTo.replace(/-/g,'/') : '';
+        whenLabel += `（${fromStr}〜${toStr}）`;
+      }
     }
     row.innerHTML = `
       <span class="tag-person ${p?p.color:''}">${p?p.name:'?'}</span>
@@ -571,7 +624,24 @@ function renderShiftList(){
   });
 }
 
-// ---------- 単発予定（複数日付） ----------
+// ---------- 予定：日付ヘルパー（新旧データ形式に両対応） ----------
+function evStartDate(e){ return e.startDate || e.date; }
+function evEndDate(e){ return e.endDate || e.date; }
+function evStartTime(e){ return e.startTime || e.start; }
+function evEndTime(e){ return e.endTime || e.end; }
+
+// ---------- 予定：モード切替（複数日付 / 日をまたぐ1つの予定） ----------
+let eventMode = 'multi';
+document.querySelectorAll('#eventModeToggle .mode-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    eventMode = btn.dataset.mode;
+    document.querySelectorAll('#eventModeToggle .mode-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('eventMultiMode').style.display = eventMode==='multi' ? 'block':'none';
+    document.getElementById('eventRangeMode').style.display = eventMode==='range' ? 'block':'none';
+  });
+});
+
 let selectedEventDates = new Set();
 function renderEventDateChips(){
   const el = document.getElementById('eventDateChips');
@@ -599,15 +669,28 @@ document.getElementById('eventDateAddBtn').addEventListener('click', ()=>{
 document.getElementById('addEventBtn').addEventListener('click', async ()=>{
   const personId = document.getElementById('eventPerson').value;
   const label = document.getElementById('eventLabel').value.trim() || '予定';
-  const start = document.getElementById('eventStart').value;
-  const end = document.getElementById('eventEnd').value;
-  if(selectedEventDates.size===0){ alert('日付を1つ以上追加してください。'); return; }
-  if(!start || !end || timeToMin(start)>=timeToMin(end)){ alert('開始時刻は終了時刻より前にしてください。'); return; }
-  selectedEventDates.forEach(dateStr=>{
-    state.events.push({ id: uid(), personId, date: dateStr, start, end, label });
-  });
-  selectedEventDates = new Set();
-  renderEventDateChips();
+
+  if(eventMode === 'multi'){
+    const start = document.getElementById('eventStart').value;
+    const end = document.getElementById('eventEnd').value;
+    if(selectedEventDates.size===0){ alert('日付を1つ以上追加してください。'); return; }
+    if(!start || !end || timeToMin(start)>=timeToMin(end)){ alert('開始時刻は終了時刻より前にしてください。'); return; }
+    selectedEventDates.forEach(dateStr=>{
+      state.events.push({ id: uid(), personId, startDate: dateStr, endDate: dateStr, startTime: start, endTime: end, label });
+    });
+    selectedEventDates = new Set();
+    renderEventDateChips();
+  } else {
+    const startDate = document.getElementById('eventRangeStartDate').value;
+    const startTime = document.getElementById('eventRangeStartTime').value;
+    const endDate = document.getElementById('eventRangeEndDate').value;
+    const endTime = document.getElementById('eventRangeEndTime').value;
+    if(!startDate || !endDate){ alert('開始日と終了日を指定してください。'); return; }
+    if(startDate > endDate){ alert('開始日は終了日より前にしてください。'); return; }
+    if(startDate === endDate && timeToMin(startTime) >= timeToMin(endTime)){ alert('同じ日の場合は、開始時刻を終了時刻より前にしてください。'); return; }
+    state.events.push({ id: uid(), personId, startDate, endDate, startTime, endTime, label });
+  }
+
   document.getElementById('eventLabel').value='';
   await saveState();
   renderAll();
@@ -618,19 +701,23 @@ function renderEventList(){
   const empty = document.getElementById('eventEmptyNote');
   const today = fmtDate(new Date());
   const sorted = [...state.events]
-    .filter(e=> e.date >= today)
-    .sort((a,b)=> a.date.localeCompare(b.date) || a.start.localeCompare(b.start))
+    .filter(e=> evEndDate(e) >= today)
+    .sort((a,b)=> evStartDate(a).localeCompare(evStartDate(b)) || evStartTime(a).localeCompare(evStartTime(b)))
     .slice(0,30);
   el.innerHTML='';
   empty.style.display = sorted.length ? 'none':'block';
   sorted.forEach(e=>{
     const p = personById(e.personId);
-    const d = parseDate(e.date);
+    const sd = evStartDate(e), ed = evEndDate(e);
+    const dS = parseDate(sd), dE = parseDate(ed);
+    const dateLabel = sd === ed
+      ? `${sd.slice(5).replace('-','/')}(${WD_LABELS[dS.getDay()]})`
+      : `${sd.slice(5).replace('-','/')}(${WD_LABELS[dS.getDay()]})〜${ed.slice(5).replace('-','/')}(${WD_LABELS[dE.getDay()]})`;
     const row = document.createElement('div');
     row.className='list-item';
     row.innerHTML = `
       <span class="tag-person ${p?p.color:''}">${p?p.name:'?'}</span>
-      <span style="flex:1;">${e.date.slice(5).replace('-','/')}(${WD_LABELS[d.getDay()]}) ${e.start}〜${e.end}　${e.label}</span>
+      <span style="flex:1;">${dateLabel} ${evStartTime(e)}〜${evEndTime(e)}　${e.label}</span>
       <button class="icon-btn" data-id="${e.id}">削除</button>
     `;
     row.querySelector('button').addEventListener('click', async ()=>{
@@ -643,14 +730,32 @@ function renderEventList(){
 }
 
 // ---------- 忙しい時間の計算 ----------
+function eventIntervalForDate(e, dateStr){
+  const sd = evStartDate(e), ed = evEndDate(e);
+  if(!sd || !ed) return null;
+  if(dateStr < sd || dateStr > ed) return null;
+  let start = 0, end = 1440;
+  if(dateStr === sd) start = timeToMin(evStartTime(e));
+  if(dateStr === ed) end = timeToMin(evEndTime(e));
+  if(start >= end) return null;
+  return { start, end, label: e.label, source:'event' };
+}
+
 function busyIntervalsForPersonOnDate(personId, dateStr){
   const d = parseDate(dateStr);
   const wd = d.getDay();
   const intervals = [];
-  state.shifts.filter(s=>s.personId===personId && (s.date===dateStr || ((s.date===null||s.date===undefined) && s.weekday===wd)))
-    .forEach(s=> intervals.push({ start: timeToMin(s.start), end: timeToMin(s.end), label: s.label, source:'shift' }));
-  state.events.filter(e=>e.personId===personId && e.date===dateStr)
-    .forEach(e=> intervals.push({ start: timeToMin(e.start), end: timeToMin(e.end), label: e.label, source:'event' }));
+  state.shifts.filter(s=>s.personId===personId && (
+    s.date===dateStr ||
+    ((s.date===null||s.date===undefined) && s.weekday===wd &&
+     (!s.validFrom || dateStr>=s.validFrom) &&
+     (!s.validTo || dateStr<=s.validTo))
+  )).forEach(s=> intervals.push({ start: timeToMin(s.start), end: timeToMin(s.end), label: s.label, source:'shift' }));
+  state.events.filter(e=>e.personId===personId)
+    .forEach(e=>{
+      const iv = eventIntervalForDate(e, dateStr);
+      if(iv) intervals.push(iv);
+    });
   return intervals.sort((a,b)=>a.start-b.start);
 }
 
