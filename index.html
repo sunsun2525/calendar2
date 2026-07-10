@@ -37,13 +37,18 @@
   .sync-badge{ font-size:11px; padding:4px 10px; border-radius:999px; font-weight:500; white-space:nowrap; }
   .sync-badge.on{ background:var(--both-soft); color:var(--both); }
   .sync-badge.off{ background:#F3EFE6; color:var(--ink-soft); }
-  .people-chips{ display:flex; gap:8px; margin: 10px 0 20px; }
+  .people-chips{ display:flex; gap:8px; margin: 10px 0 12px; }
+  .my-person-row{ display:flex; align-items:center; gap:8px; margin:0 0 20px; font-size:12.5px; color:var(--ink-soft); flex-wrap:wrap; }
+  .my-person-row .mode-toggle{ margin-bottom:0; width:auto; }
+  .my-person-row .mode-btn{ flex:0 0 auto; padding:5px 12px; }
   .chip{ display:flex; align-items:center; gap:6px; padding:6px 12px; border-radius:999px; font-size:13px; font-weight:500; }
   .chip .dot{ width:9px; height:9px; border-radius:50%; }
   .chip.p1{ background:var(--p1-soft); color:var(--p1); }
   .chip.p2{ background:var(--p2-soft); color:var(--p2); }
+  .chip.both{ background:var(--both-soft); color:var(--both); }
   .chip .dot.p1{ background:var(--p1); }
   .chip .dot.p2{ background:var(--p2); }
+  .chip .dot.both{ background:var(--both); }
   .chip input{ border:none; background:transparent; font:inherit; color:inherit; width: 70px; outline:none; }
 
   .tabs{ display:flex; gap:4px; border-bottom:1.5px solid var(--line); margin-bottom:20px; overflow-x:auto; }
@@ -90,6 +95,7 @@
   .tag-person{ font-size:11px; padding:2px 8px; border-radius:999px; font-weight:500; flex-shrink:0; }
   .tag-person.p1{ background:var(--p1-soft); color:var(--p1); }
   .tag-person.p2{ background:var(--p2-soft); color:var(--p2); }
+  .tag-person.both{ background:var(--both-soft); color:var(--both); }
 
   .cal-nav{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
   .cal-nav h2{ font-size:17px; }
@@ -105,19 +111,25 @@
   .cal-event-compact{ font-size:10px; line-height:1.3; font-weight:700; white-space:nowrap; overflow:hidden; letter-spacing:-0.02em; }
   .cal-event-compact.p1{ color:var(--p1); }
   .cal-event-compact.p2{ color:var(--p2); }
+  .cal-event-compact.both{ color:var(--both); }
   .cal-event-label{ display:flex; align-items:center; gap:3px; font-size:9.5px; line-height:1.3; color:var(--ink); min-width:0; }
   .cal-event-label .dot{ width:6px; height:6px; border-radius:50%; flex-shrink:0; }
   .cal-event-label span:last-child{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; flex:1; }
   .cal-event-label.p1 .dot{ background:var(--p1); }
   .cal-event-label.p2 .dot{ background:var(--p2); }
+  .cal-event-label.both .dot{ background:var(--both); }
   .cal-event-more{ display:flex; align-items:center; gap:3px; font-size:9.5px; line-height:1.3; color:var(--ink-soft); font-weight:500; }
   .cal-event-more .dot{ width:6px; height:6px; border-radius:50%; flex-shrink:0; opacity:0.55; }
   .cal-event-more.p1 .dot{ background:var(--p1); }
   .cal-event-more.p2 .dot{ background:var(--p2); }
+  .cal-event-more.both .dot{ background:var(--both); }
 
   .day-detail{ margin-top:14px; }
   .interval-row{ display:flex; align-items:center; gap:8px; font-size:13px; padding:6px 0; }
   .interval-row .bar{ width:6px; height:16px; border-radius:3px; flex-shrink:0; }
+  .interval-row .bar.p1{ background:var(--p1); }
+  .interval-row .bar.p2{ background:var(--p2); }
+  .interval-row .bar.both{ background:var(--both); }
   .empty-note{ color:var(--ink-soft); font-size:13px; padding:8px 0; }
 
   .candidate{ display:flex; align-items:center; justify-content:space-between; padding:12px 14px; border:1px solid var(--line); border-radius:10px; margin-bottom:8px; background:#fff; }
@@ -126,6 +138,10 @@
   .candidate .badges{ display:flex; gap:5px; flex-wrap:wrap; margin-top:5px; }
   .badge{ font-size:10.5px; padding:2px 7px; border-radius:999px; background:var(--both-soft); color:var(--both); font-weight:500; }
   .candidate .rank{ font-size:20px; font-weight:700; color:var(--ink-soft); font-family:'Zen Maru Gothic'; min-width:26px; text-align:center; }
+  .candidate-register{ display:flex; gap:6px; margin-top:8px; }
+  .candidate-register .cand-name-input{ flex:1; min-width:0; padding:7px 9px; font-size:12.5px; border:1px solid var(--line); border-radius:7px; }
+  .candidate-register .cand-register-btn{ flex:0 0 auto; padding:7px 12px; font-size:12.5px; }
+  .cand-registered{ font-size:12.5px; color:var(--both); font-weight:600; }
 
   .helper{ font-size:12px; color:var(--ink-soft); margin-top:6px; }
   .divider{ height:1px; background:var(--line); margin:14px 0; }
@@ -149,6 +165,10 @@
   </div>
 
   <div class="people-chips" id="peopleChips"></div>
+  <div class="my-person-row">
+    <span>この端末での自分：</span>
+    <div class="mode-toggle" id="myPersonToggle"></div>
+  </div>
 
   <div class="tabs">
     <button class="tab-btn active" data-tab="calendar">カレンダー</button>
@@ -475,7 +495,43 @@ function timeToMin(t){ const [h,m]=t.split(':').map(Number); return h*60+m; }
 function minToTime(m){ m=((m%1440)+1440)%1440; return `${pad2(Math.floor(m/60))}:${pad2(m%60)}`; }
 const WD_LABELS = ['日','月','火','水','木','金','土'];
 
-function personById(id){ return state.people.find(p=>p.id===id); }
+const BOTH_PERSON = { id:'both', name:'ふたり', color:'both' };
+function personById(id){
+  if(id==='both') return BOTH_PERSON;
+  return state.people.find(p=>p.id===id);
+}
+
+// ---------- この端末での「自分」設定（端末ごとにlocalStorageで保持） ----------
+const MY_PERSON_KEY = 'sfp-my-person-id';
+function getMyPersonId(){
+  try{ return localStorage.getItem(MY_PERSON_KEY); }catch(e){ return null; }
+}
+function setMyPersonId(id){
+  try{ localStorage.setItem(MY_PERSON_KEY, id); }catch(e){}
+}
+function getOrderedPeople(){
+  const myId = getMyPersonId();
+  if(!myId) return state.people;
+  const mine = state.people.filter(p=>p.id===myId);
+  const others = state.people.filter(p=>p.id!==myId);
+  return [...mine, ...others];
+}
+function renderMyPersonToggle(){
+  const el = document.getElementById('myPersonToggle');
+  el.innerHTML = '';
+  const current = getMyPersonId();
+  state.people.forEach(p=>{
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'mode-btn' + (current===p.id ? ' active' : '');
+    btn.textContent = p.name;
+    btn.addEventListener('click', ()=>{
+      setMyPersonId(p.id);
+      renderAll();
+    });
+    el.appendChild(btn);
+  });
+}
 
 // ---------- 人チップ（名前編集） ----------
 function renderPeopleChips(){
@@ -495,15 +551,24 @@ function renderPeopleChips(){
     chip.appendChild(input);
     el.appendChild(chip);
   });
+  const bothChip = document.createElement('div');
+  bothChip.className = 'chip both';
+  bothChip.style.cursor = 'default';
+  bothChip.innerHTML = `<span class="dot both"></span><span style="padding:0 2px;">ふたり</span>`;
+  el.appendChild(bothChip);
 }
 
 function fillPersonSelects(){
-  ['shiftPerson','eventPerson'].forEach(id=>{
-    const sel = document.getElementById(id);
-    const prev = sel.value;
-    sel.innerHTML = state.people.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
-    if(prev) sel.value = prev;
-  });
+  const shiftSel = document.getElementById('shiftPerson');
+  const prevShift = shiftSel.value;
+  shiftSel.innerHTML = state.people.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  if(prevShift) shiftSel.value = prevShift;
+
+  const eventSel = document.getElementById('eventPerson');
+  const prevEvent = eventSel.value;
+  eventSel.innerHTML = state.people.map(p=>`<option value="${p.id}">${p.name}</option>`).join('')
+    + `<option value="both">ふたり（2人の予定）</option>`;
+  if(prevEvent) eventSel.value = prevEvent;
 }
 
 // ---------- タブ切り替え ----------
@@ -930,7 +995,8 @@ function eventIntervalForDate(e, dateStr){
   return { start, end, label: e.label, source:'event' };
 }
 
-function busyIntervalsForPersonOnDate(personId, dateStr){
+// 個人の予定（バイト＋その人だけの予定）。表示で「ふたりの予定」と分けて出すために使う。
+function personalIntervalsOnDate(personId, dateStr){
   const d = parseDate(dateStr);
   const wd = d.getDay();
   const intervals = [];
@@ -946,6 +1012,22 @@ function busyIntervalsForPersonOnDate(personId, dateStr){
       if(iv) intervals.push(iv);
     });
   return intervals.sort((a,b)=>a.start-b.start);
+}
+
+// ふたり（両方が拘束される）予定だけ
+function jointIntervalsOnDate(dateStr){
+  const intervals = [];
+  state.events.filter(e=>e.personId==='both')
+    .forEach(e=>{
+      const iv = eventIntervalForDate(e, dateStr);
+      if(iv) intervals.push(iv);
+    });
+  return intervals.sort((a,b)=>a.start-b.start);
+}
+
+// その人が実際に埋まっている時間（個人の予定＋ふたりの予定）。空き時間の判定に使う。
+function busyIntervalsForPersonOnDate(personId, dateStr){
+  return [...personalIntervalsOnDate(personId, dateStr), ...jointIntervalsOnDate(dateStr)].sort((a,b)=>a.start-b.start);
 }
 
 function mergeIntervals(intervals){
@@ -1009,14 +1091,14 @@ function renderCalendar(){
     cell.appendChild(numEl);
 
     const labelsEl = document.createElement('div');
+    const jointRaw = jointIntervalsOnDate(dateStr);
     if(isWideScreen()){
       labelsEl.className='cal-labels';
       const MAX_PER_PERSON = 2;
-      state.people.forEach(p=>{
-        const raw = busyIntervalsForPersonOnDate(p.id, dateStr).sort((a,b)=>a.start-b.start);
-        raw.slice(0, MAX_PER_PERSON).forEach(iv=>{
+      const renderGroup = (list, color, max)=>{
+        list.slice(0, max).forEach(iv=>{
           const line = document.createElement('div');
-          line.className = `cal-event-label ${p.color}`;
+          line.className = `cal-event-label ${color}`;
           const dot = document.createElement('span');
           dot.className = 'dot';
           const text = document.createElement('span');
@@ -1025,22 +1107,35 @@ function renderCalendar(){
           line.appendChild(text);
           labelsEl.appendChild(line);
         });
-        if(raw.length > MAX_PER_PERSON){
+        if(list.length > max){
           const more = document.createElement('div');
-          more.className = `cal-event-more ${p.color}`;
+          more.className = `cal-event-more ${color}`;
           const dot = document.createElement('span');
           dot.className = 'dot';
           const text = document.createElement('span');
-          text.textContent = `+${raw.length - MAX_PER_PERSON}`;
+          text.textContent = `+${list.length - max}`;
           more.appendChild(dot);
           more.appendChild(text);
           labelsEl.appendChild(more);
         }
+      };
+      renderGroup(jointRaw, 'both', MAX_PER_PERSON);
+      getOrderedPeople().forEach(p=>{
+        const raw = personalIntervalsOnDate(p.id, dateStr).sort((a,b)=>a.start-b.start);
+        renderGroup(raw, p.color, MAX_PER_PERSON);
       });
     } else {
       labelsEl.className='cal-labels simple';
-      state.people.forEach(p=>{
-        const raw = busyIntervalsForPersonOnDate(p.id, dateStr).sort((a,b)=>a.start-b.start);
+      if(jointRaw.length){
+        const line = document.createElement('div');
+        line.className = 'cal-event-compact both';
+        let text = jointRaw[0].label.slice(0,3);
+        if(jointRaw.length > 1) text += `+${jointRaw.length - 1}`;
+        line.textContent = text;
+        labelsEl.appendChild(line);
+      }
+      getOrderedPeople().forEach(p=>{
+        const raw = personalIntervalsOnDate(p.id, dateStr).sort((a,b)=>a.start-b.start);
         if(raw.length===0) return;
         const line = document.createElement('div');
         line.className = `cal-event-compact ${p.color}`;
@@ -1070,13 +1165,21 @@ function renderDayDetail(){
   const list = document.getElementById('dayDetailList');
   list.innerHTML='';
   let any=false;
-  state.people.forEach(p=>{
-    const busy = mergeIntervals(busyIntervalsForPersonOnDate(p.id, selectedDate)).sort((a,b)=>a.start-b.start);
-    const raw = busyIntervalsForPersonOnDate(p.id, selectedDate).sort((a,b)=>a.start-b.start);
+
+  const jointRaw = jointIntervalsOnDate(selectedDate);
+  jointRaw.forEach(iv=>{
+    any=true;
+    const row = document.createElement('div');
+    row.className='interval-row';
+    row.innerHTML = `<span class="bar both"></span><span class="tag-person both">ふたり</span><span>${minToTime(iv.start)}〜${minToTime(iv.end)} ${iv.label}</span>`;
+    list.appendChild(row);
+  });
+
+  getOrderedPeople().forEach(p=>{
+    const raw = personalIntervalsOnDate(p.id, selectedDate).sort((a,b)=>a.start-b.start);
     if(raw.length===0) return;
     any=true;
     raw.forEach(iv=>{
-      any=true;
       const row = document.createElement('div');
       row.className='interval-row';
       row.innerHTML = `<span class="bar ${p.color}"></span><span class="tag-person ${p.color}">${p.name}</span><span>${minToTime(iv.start)}〜${minToTime(iv.end)} ${iv.label}</span>`;
@@ -1186,8 +1289,28 @@ document.getElementById('runSuggestBtn').addEventListener('click', ()=>{
         <div class="date">${c.dateStr.replace(/-/g,'/')}(${WD_LABELS[c.dateObj.getDay()]})</div>
         <div class="time">${minToTime(c.start)}〜${minToTime(c.end)} 目安（空き ${Math.floor(c.freeLen/60)}時間${c.freeLen%60}分）</div>
         <div class="badges">${badges}</div>
+        <div class="candidate-register" id="candReg-${idx}">
+          <input type="text" class="cand-name-input" placeholder="予定の名前（例：デート）">
+          <button type="button" class="ghost cand-register-btn">この日程で登録</button>
+        </div>
       </div>
     `;
+    const regWrap = div.querySelector(`#candReg-${idx}`);
+    const nameInput = regWrap.querySelector('.cand-name-input');
+    const regBtn = regWrap.querySelector('.cand-register-btn');
+    regBtn.addEventListener('click', async ()=>{
+      const label = nameInput.value.trim() || 'ふたりの予定';
+      state.events.push({
+        id: uid(), personId:'both',
+        startDate: c.dateStr, endDate: c.dateStr,
+        startTime: minToTime(c.start), endTime: minToTime(c.end),
+        label
+      });
+      await saveState();
+      regWrap.innerHTML = '<span class="cand-registered">✓ カレンダーに登録しました</span>';
+      renderCalendar();
+      renderEventList();
+    });
     resultsEl.appendChild(div);
   });
 });
@@ -1195,6 +1318,7 @@ document.getElementById('runSuggestBtn').addEventListener('click', ()=>{
 // ---------- 初期化 ----------
 function renderAll(){
   renderPeopleChips();
+  renderMyPersonToggle();
   fillPersonSelects();
   renderShiftList();
   renderEventList();
