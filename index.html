@@ -34,6 +34,9 @@
   .app-header{ display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:18px; }
   .app-header h1{ font-size:24px; letter-spacing:0.02em; }
   .app-header .tagline{ font-size:12.5px; color:var(--ink-soft); }
+  .sync-badge{ font-size:11px; padding:4px 10px; border-radius:999px; font-weight:500; white-space:nowrap; }
+  .sync-badge.on{ background:var(--both-soft); color:var(--both); }
+  .sync-badge.off{ background:#F3EFE6; color:var(--ink-soft); }
   .people-chips{ display:flex; gap:8px; margin: 10px 0 20px; }
   .chip{ display:flex; align-items:center; gap:6px; padding:6px 12px; border-radius:999px; font-size:13px; font-weight:500; }
   .chip .dot{ width:9px; height:9px; border-radius:50%; }
@@ -131,6 +134,8 @@
       <h1>ふたりの予定表</h1>
       <div class="tagline">バイトは自動で、予定は手入力。会える日を一緒に見つける。</div>
     </div>
+    <span class="sync-badge off" id="syncBadge">確認中…</span>
+    <button type="button" class="ghost" id="manualRefreshBtn" style="padding:4px 12px; font-size:11.5px;">今すぐ更新</button>
   </div>
 
   <div class="people-chips" id="peopleChips"></div>
@@ -287,9 +292,15 @@
     </div>
   </div>
 
-  <div class="save-note">このカレンダーのデータは、このアプリを開いた人同士で共有されます。</div>
+  <div class="save-note" id="saveNote">「2台で同期中」と出ていれば、両方の端末に同じ内容が表示されます（反映まで最大20秒ほどかかることがあります）。</div>
 </div>
 
+<script>
+// jsonbin.io で作った「Bin ID」と「X-Master-Key」をここに貼り付けてください。
+// 何も設定しない場合は、この端末のブラウザだけに保存されます（他の端末とは同期されません）。
+const JSONBIN_ID = '6a50a484da38895dfe49f89b';
+const JSONBIN_KEY = '$2a$10$JJwpjljYPnbO0F1ATNNZuuALt/YsQ9TE9CJP/z7ina2aPrMbBmd/O';
+</script>
 <script>
 const STORAGE_KEY = 'sfp-planner-data-v1';
 let state = null;
@@ -309,26 +320,92 @@ function defaultState(){
   };
 }
 
-async function loadState(){
-  try{
-    const res = await window.storage.get(STORAGE_KEY, true);
-    if(res && res.value){
-      state = JSON.parse(res.value);
-    } else {
+let jsonbinReady = false;
+const JSONBIN_API_ROOT = 'https://api.jsonbin.io/v3/b/' + JSONBIN_ID;
+const POLL_INTERVAL_MS = 20000;
+
+function isJsonbinConfigured(){
+  return JSONBIN_ID && JSONBIN_ID !== 'YOUR_BIN_ID' && JSONBIN_KEY && JSONBIN_KEY !== 'YOUR_MASTER_KEY';
+}
+
+async function fetchFromJsonbin(){
+  const res = await fetch(JSONBIN_API_ROOT + '/latest', {
+    method: 'GET',
+    headers: { 'X-Master-Key': JSONBIN_KEY, 'X-Bin-Meta': 'false' }
+  });
+  if(!res.ok) throw new Error('jsonbin読み込みエラー: ' + res.status);
+  return await res.json();
+}
+
+async function pushToJsonbin(data){
+  const res = await fetch(JSONBIN_API_ROOT, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'X-Master-Key': JSONBIN_KEY },
+    body: JSON.stringify(data)
+  });
+  if(!res.ok) throw new Error('jsonbin保存エラー: ' + res.status);
+}
+
+function setSyncBadge(text, cls){
+  const badge = document.getElementById('syncBadge');
+  badge.textContent = text;
+  badge.className = 'sync-badge ' + cls;
+}
+
+async function startRealtimeSync(onData){
+  jsonbinReady = isJsonbinConfigured();
+  if(!jsonbinReady){
+    setSyncBadge('この端末だけに保存中', 'off');
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      state = raw ? JSON.parse(raw) : defaultState();
+    }catch(e){
       state = defaultState();
-      await saveState();
     }
-  }catch(e){
-    state = defaultState();
-    await saveState();
+    onData();
+    return;
   }
+
+  try{
+    const remote = await fetchFromJsonbin();
+    state = (remote && remote.people) ? remote : defaultState();
+    if(!remote || !remote.people) await pushToJsonbin(state);
+    setSyncBadge('2台で同期中', 'on');
+  }catch(e){
+    console.error(e);
+    setSyncBadge('同期エラー（設定を確認してください）', 'off');
+    state = defaultState();
+  }
+  onData();
+
+  // 一定間隔で相手側の更新を取り込む
+  setInterval(async ()=>{
+    if(!jsonbinReady) return;
+    try{
+      const remote = await fetchFromJsonbin();
+      if(remote && remote.people){
+        state = remote;
+        onData();
+      }
+      setSyncBadge('2台で同期中', 'on');
+    }catch(e){
+      console.error(e);
+      setSyncBadge('同期エラー（通信を確認してください）', 'off');
+    }
+  }, POLL_INTERVAL_MS);
 }
 
 async function saveState(){
   try{
-    await window.storage.set(STORAGE_KEY, JSON.stringify(state), true);
+    if(jsonbinReady){
+      await pushToJsonbin(state);
+      setSyncBadge('2台で同期中', 'on');
+    } else {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
   }catch(e){
     console.error('保存に失敗しました', e);
+    setSyncBadge('保存エラー（通信を確認してください）', 'off');
   }
 }
 
@@ -789,6 +866,21 @@ function renderAll(){
   renderDayDetail();
 }
 
+document.getElementById('manualRefreshBtn').addEventListener('click', async ()=>{
+  if(!jsonbinReady){ alert('同期が設定されていないため、この端末のデータのみ表示されています。'); return; }
+  try{
+    const remote = await fetchFromJsonbin();
+    if(remote && remote.people){
+      state = remote;
+      renderAll();
+    }
+    setSyncBadge('2台で同期中', 'on');
+  }catch(e){
+    console.error(e);
+    setSyncBadge('同期エラー（通信を確認してください）', 'off');
+  }
+});
+
 async function init(){
   const now = new Date();
   calYear = now.getFullYear();
@@ -803,8 +895,8 @@ async function init(){
   renderWeekdayPicker();
   renderShiftDateChips();
   renderEventDateChips();
-  await loadState();
-  renderAll();
+
+  await startRealtimeSync(renderAll);
 }
 
 init();
