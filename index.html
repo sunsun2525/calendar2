@@ -962,6 +962,16 @@ function renderCalWeekdayHeader(){
   el.innerHTML = WD_LABELS.map(w=>`<div class="cal-wd">${w}</div>`).join('');
 }
 
+function isWideScreen(){
+  return window.innerWidth > 480;
+}
+
+let resizeTimer = null;
+window.addEventListener('resize', ()=>{
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(()=>{ if(state) renderCalendar(); }, 200);
+});
+
 function renderCalendar(){
   document.getElementById('calTitle').textContent = `${calYear}年 ${calMonth+1}月`;
   const grid = document.getElementById('calGrid');
@@ -1004,7 +1014,7 @@ function renderCalendar(){
         const dot = document.createElement('span');
         dot.className = 'dot';
         const text = document.createElement('span');
-        text.textContent = iv.label.slice(0, 3);
+        text.textContent = isWideScreen() ? iv.label : iv.label.slice(0, 3);
         line.appendChild(dot);
         line.appendChild(text);
         labelsEl.appendChild(line);
